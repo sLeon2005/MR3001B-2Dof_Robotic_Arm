@@ -1,63 +1,114 @@
 #include "MotorDriver.h"
 #include "PDController.h"
+#include "driver/pcnt.h"
+
+// ====== CONFIGURACIÓN PCNT ======
+#define PCNT_UNIT        PCNT_UNIT_0
+#define PCNT_H_LIM       10000
+#define PCNT_L_LIM      -10000
 
 struct Encoder {
   uint8_t pinA;
   uint8_t pinB;
-  volatile int count;
-  int ppr;  // pulses per revolution
+  int ppr;  // pulses per revolution (en modo x4 serán 4x este valor)
 };
 
+Encoder enc1 = { 34, 35, 1600 };
+
+// Acumulador de 64 bits para rango ilimitado
+static volatile int64_t encoder_accumulator = 0;
+
 // ====== INSTANCIAS ======
-Encoder enc1 = { 34, 35, 0, 1600 };
+MotorDriver motor1(25, 26, 27);  // pwm pin, dir1, dir2
+PDController PD_motor1(1.5, 0.09);  // kp, kd
 
+// ====== CALLBACK DE OVERFLOW (hardware) ======
+static void IRAM_ATTR pcnt_overflow_handler(void* arg) {
+  uint32_t intr_status;
+  pcnt_get_event_status(PCNT_UNIT, &intr_status);
 
-MotorDriver motor1(25, 26, 27);
-PDController PD_motor1(0.5, 0.02);
-
-// ====== ISR GENÉRICA ======
-void IRAM_ATTR handleEncoder(void* arg) {
-  Encoder* enc = (Encoder*)arg;
-
-  bool A = digitalRead(enc->pinA);
-  bool B = digitalRead(enc->pinB);
-
-  if (A == B) {
-    enc->count++;
-  } else {
-    enc->count--;
-  }
+  if (intr_status & PCNT_EVT_H_LIM) encoder_accumulator += PCNT_H_LIM;
+  if (intr_status & PCNT_EVT_L_LIM) encoder_accumulator += PCNT_L_LIM;
 }
 
-// ====== INIT ======
+// ====== INIT ENCODER (PCNT) ======
 void initEncoder(Encoder* enc) {
-  pinMode(enc->pinA, INPUT_PULLUP);
-  pinMode(enc->pinB, INPUT_PULLUP);
+  // Canal 0: cuenta flancos del canal A, controlado por B
+  pcnt_config_t cfg = {
+    .pulse_gpio_num = enc->pinA,
+    .ctrl_gpio_num  = enc->pinB,
+    .lctrl_mode     = PCNT_MODE_REVERSE,
+    .hctrl_mode     = PCNT_MODE_KEEP,
+    .pos_mode       = PCNT_COUNT_INC,
+    .neg_mode       = PCNT_COUNT_DEC,
+    .counter_h_lim  = PCNT_H_LIM,
+    .counter_l_lim  = PCNT_L_LIM,
+    .unit           = PCNT_UNIT,
+    .channel        = PCNT_CHANNEL_0,
+  };
+  pcnt_unit_config(&cfg);
 
-  attachInterruptArg(
-    digitalPinToInterrupt(enc->pinA),
-    handleEncoder,
-    enc,
-    CHANGE);
+  // Canal 1: cuenta flancos del canal B, controlado por A (modo x4 completo)
+  pcnt_config_t cfg2 = {
+    .pulse_gpio_num = enc->pinB,
+    .ctrl_gpio_num  = enc->pinA,
+    .lctrl_mode     = PCNT_MODE_KEEP,
+    .hctrl_mode     = PCNT_MODE_REVERSE,
+    .pos_mode       = PCNT_COUNT_INC,
+    .neg_mode       = PCNT_COUNT_DEC,
+    .counter_h_lim  = PCNT_H_LIM,
+    .counter_l_lim  = PCNT_L_LIM,
+    .unit           = PCNT_UNIT,
+    .channel        = PCNT_CHANNEL_1,
+  };
+  pcnt_unit_config(&cfg2);
+
+  // Filtro de glitches (~1 µs a 80 MHz)
+  pcnt_set_filter_value(PCNT_UNIT, 80);
+  pcnt_filter_enable(PCNT_UNIT);
+
+  // Overflow handler
+  pcnt_event_enable(PCNT_UNIT, PCNT_EVT_H_LIM);
+  pcnt_event_enable(PCNT_UNIT, PCNT_EVT_L_LIM);
+  pcnt_isr_register(pcnt_overflow_handler, NULL, 0, NULL);
+  pcnt_intr_enable(PCNT_UNIT);
+
+  pcnt_counter_pause(PCNT_UNIT);
+  pcnt_counter_clear(PCNT_UNIT);
+  pcnt_counter_resume(PCNT_UNIT);
 }
 
+// ====== LECTURA Y RESET ======
+int64_t encoder_get_position() {
+  int16_t count = 0;
+  pcnt_get_counter_value(PCNT_UNIT, &count);
+  return encoder_accumulator + (int64_t)count;
+}
+
+void encoder_reset() {
+  pcnt_counter_pause(PCNT_UNIT);
+  pcnt_counter_clear(PCNT_UNIT);
+  encoder_accumulator = 0;
+  pcnt_counter_resume(PCNT_UNIT);
+}
+
+// ====== SETUP ======
 void setup() {
   Serial.begin(115200);
 
-  // arrancar interrupciones de encoders
   initEncoder(&enc1);
 
-  // constructores de motores
   motor1.begin();
-  motor1.setOutput(0.0);
-  delay(1200);
+  motor1.stop();
+  delay(250);
   motor1.setOutput(10.0);
-  delay(1200);
-  motor1.setOutput(-50.0);
-  delay(1200);
-  motor1.setOutput(-100.0);
+  delay(1000);
+  //motor1.setOutput(-40.0);
+  delay(1000);
+  motor1.stop();
 }
 
+// ====== LOOP ======
 unsigned long previousMillis = 0;
 const unsigned long interval = 20;  // ms
 
@@ -66,24 +117,23 @@ void loop() {
 
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
-    mainCycle();  // lógica periódica
+    mainCycle();
   }
 }
 
-// ciclo principal de trabajo
+// ====== CICLO PRINCIPAL ======
 void mainCycle() {
-  int countCopy;
+  int64_t countCopy = encoder_get_position();
 
-  // Protección contra condición de carrera (muy importante)
-  noInterrupts();
-  countCopy = enc1.count;
-  interrupts();
-
-  float degrees = (countCopy * 360.0) / enc1.ppr;
+  // ppr * 4 porque PCNT en modo x4 cuenta 4 flancos por pulso
+  float degrees = (countCopy * 360.0) / (enc1.ppr * 4);
 
   Serial.print("Pulsos: ");
-  Serial.print(countCopy);
+  Serial.print((long)countCopy);
 
   Serial.print(" | Grados: ");
   Serial.println(degrees);
+
+  motor1.setOutput(PD_motor1.compute(0.0, degrees, 0.02));
+  Serial.println(PD_motor1.compute(0.0, degrees, 0.02));
 }

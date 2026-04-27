@@ -23,7 +23,7 @@ public:
 private:
   uint8_t _pwmPin, _dir1, _dir2;
 
-  int _pwmMin = 0;
+  int _pwmMin = 20;
   int _pwmMax = 255;
 
   float _uMax = 100.0;

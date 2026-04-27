@@ -1,4 +1,5 @@
 #include "PDController.h"
+#include <math.h>
 
 //  constructor
 PDController::PDController(float kp, float kd) {
@@ -11,19 +12,30 @@ void PDController::setGains(float kp, float kd) {
   _kd = kd;
 }
 
+void PDController::setTolerance(float tolerance) {
+  _tolerance = tolerance;
+}
+
 float PDController::compute(float setpoint, float measurement, float dt) {
 
   float error = setpoint - measurement;
 
-  // Derivada de la medición (más estable)
-  float diffError = (measurement - _prevMeasurement) / dt;
+  float u;
+  if (fabs(error) >= _tolerance) {
+    // Derivada de la medición (más estable)
+    float diffError = (measurement - _prevMeasurement) / dt;
 
-  // Filtro exponencial
-  _velFiltered = _alpha * _velFiltered + (1 - _alpha) * diffError;
+    // Filtro exponencial
+    _velFiltered = _alpha * _velFiltered + (1 - _alpha) * diffError;
 
-  _prevMeasurement = measurement;
+    _prevMeasurement = measurement;
 
-  float u = (_kp * error) - (_kd * _velFiltered);
+    u = (_kp * error) - (_kd * _velFiltered);
+  }
+  else {
+    u = 0.0;
+  }
+
 
   return u;
 }

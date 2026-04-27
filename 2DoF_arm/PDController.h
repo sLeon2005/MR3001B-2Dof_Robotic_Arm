@@ -7,6 +7,8 @@ public:
 
   void setGains(float kp, float kd);
 
+  void setTolerance(float tolerance);
+
   // Llamar cada ciclo
   float compute(float setpoint, float measurement, float dt);
 
@@ -15,6 +17,8 @@ public:
 private:
   float _kp;
   float _kd;
+
+  float _tolerance = 2.5;
 
   float _prevMeasurement = 0.0;
   float _velFiltered = 0.0;
