@@ -1,16 +1,23 @@
+#include "MotorDriver.h"
+#include "PDController.h"
+
 struct Encoder {
   uint8_t pinA;
   uint8_t pinB;
   volatile int count;
-  int ppr; // pulses per revolution (ya considerando tu método de conteo)
+  int ppr;  // pulses per revolution
 };
 
 // ====== INSTANCIAS ======
-Encoder enc1 = {34, 35, 0, 1600};  // ajusta PPR real
+Encoder enc1 = { 34, 35, 0, 1600 };
+
+
+MotorDriver motor1(25, 26, 27);
+PDController PD_motor1(0.5, 0.02);
 
 // ====== ISR GENÉRICA ======
 void IRAM_ATTR handleEncoder(void* arg) {
-  Encoder* enc = (Encoder*) arg;
+  Encoder* enc = (Encoder*)arg;
 
   bool A = digitalRead(enc->pinA);
   bool B = digitalRead(enc->pinB);
@@ -31,37 +38,52 @@ void initEncoder(Encoder* enc) {
     digitalPinToInterrupt(enc->pinA),
     handleEncoder,
     enc,
-    CHANGE
-  );
-}
-
-// ====== CONVERSIÓN ======
-float getDegrees(Encoder* enc) {
-  return (enc->count * 360.0) / enc->ppr;
+    CHANGE);
 }
 
 void setup() {
   Serial.begin(115200);
 
+  // arrancar interrupciones de encoders
   initEncoder(&enc1);
 
-  // Motor (igual que tenías)
-  ledcAttach(25, 5000, 8);
-  ledcWrite(25, 0);
-
-  pinMode(26, OUTPUT);
-  pinMode(27, OUTPUT);
-
-  digitalWrite(26, HIGH);
-  digitalWrite(27, LOW);
+  // constructores de motores
+  motor1.begin();
+  motor1.setOutput(0.0);
+  delay(1200);
+  motor1.setOutput(10.0);
+  delay(1200);
+  motor1.setOutput(-50.0);
+  delay(1200);
+  motor1.setOutput(-100.0);
 }
 
+unsigned long previousMillis = 0;
+const unsigned long interval = 20;  // ms
+
 void loop() {
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    mainCycle();  // lógica periódica
+  }
+}
+
+// ciclo principal de trabajo
+void mainCycle() {
+  int countCopy;
+
+  // Protección contra condición de carrera (muy importante)
+  noInterrupts();
+  countCopy = enc1.count;
+  interrupts();
+
+  float degrees = (countCopy * 360.0) / enc1.ppr;
+
   Serial.print("Pulsos: ");
-  Serial.print(enc1.count);
+  Serial.print(countCopy);
 
   Serial.print(" | Grados: ");
-  Serial.println(getDegrees(&enc1));
-
-  delay(100);
+  Serial.println(degrees);
 }
