@@ -16,15 +16,15 @@ public:
 
   void reset();
 
+  volatile int64_t _accumulator = 0;  // público para acceso del ISR global
+
 private:
   uint8_t     _pinA;
   uint8_t     _pinB;
   int         _ppr;
   pcnt_unit_t _unit;
 
-  volatile int64_t _accumulator;
-
-  static void IRAM_ATTR _overflowHandler(void* arg);
+  static void _overflowHandler(void* arg);  // sin IRAM_ATTR aquí
 };
 
 #endif
