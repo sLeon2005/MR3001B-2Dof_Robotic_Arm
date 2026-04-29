@@ -24,7 +24,7 @@ private:
   int         _ppr;
   pcnt_unit_t _unit;
 
-  static void _overflowHandler(void* arg);  // sin IRAM_ATTR aquí
+  static void _overflowHandler(void* arg);
 };
 
 #endif
