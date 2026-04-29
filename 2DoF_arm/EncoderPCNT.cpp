@@ -109,5 +109,16 @@ void EncoderPCNT::reset() {
   pcnt_counter_resume(_unit);
 }
 
+void EncoderPCNT::setAngle(float degrees) {
+  // Calcula cuántos counts corresponden al ángulo deseado
+  int64_t targetCount = (int64_t)((degrees * _ppr) / 360.0f) * _inverted;
+
+  // Pausa, limpia el hw, y ajusta el acumulador
+  pcnt_counter_pause(_unit);
+  pcnt_counter_clear(_unit);
+  _accumulator = targetCount;
+  pcnt_counter_resume(_unit);
+}
+
 // Definición vacía porque ya usamos el handler global
 void EncoderPCNT::_overflowHandler(void* arg) {}
