@@ -258,9 +258,12 @@ void loop() {
 
 #define a4 (72.5 + 80.3)
 
+float motor1_speed = 0;
+float motor1_setpoint = 0;
+
 MotorDriver motor1(motor1_EN, motor1_IN1, motor1_IN2);
 EncoderPCNT enc1(enc1_A, enc1_B, 3200, PCNT_UNIT_0);
-PDController motor1_PD(1.5, 0.85);  // kp, kd
+PDController motor1_PD(2.0, 0.25);  // kp, kd
 
 DRV8874 motor2(motor2_EN, motor2_PH, motor2_IPROPI);
 EncoderPCNT enc2(enc2_A, enc2_B, 3200, PCNT_UNIT_1);
@@ -276,19 +279,55 @@ void setup() {
   Serial.print("Encoder 1: ");
   Serial.println(enc1.getDegrees());
 
-  motor1.setOutput(95.0);
-  delay(130);
-  motor1.stop();
-
   Serial.print("Encoder 1: ");
   Serial.println(enc1.getDegrees());
   delay(600);
 }
 
 void loop() {
-  Serial.println(motor1_PD.compute(0.0, enc1.getDegrees(), 0.02));
-  motor1.setOutput(motor1_PD.compute(0.0, enc1.getDegrees(), 0.02));
-  Serial.println(enc1.getDegrees(), 3);
+
+  // receive commands from Serial Monitor
+  if (Serial.available() > 0) {
+    char cmd = Serial.read();
+
+    if (cmd == 'A') {
+      Serial.println("Resetting encoder #1");
+      enc1.reset();      
+    }
+
+    else if (cmd == 'B') {
+      Serial.println("M1 speed = 30");
+      motor1_setpoint = 45.0;
+    }
+
+    else if (cmd == 'C') {
+      Serial.println("M1 speed = -30");
+      motor1_setpoint = 135.0;
+    }
+  }
+
+  //Serial.println(motor1_PD.compute(0.0, enc1.getDegrees(), 0.02));
+  motor1_speed = motor1_PD.compute(motor1_setpoint, enc1.getDegrees(), 0.02);  
+
+  // clamp speed if off physical limits
+  if (enc1.getDegrees() < 0.0){
+    motor1_speed = max(motor1_speed, 0.0f);
+  }
+  if (enc1.getDegrees() > 180.0){
+    motor1_speed = min(motor1_speed, 0.0f);
+  }
+
+  // set output of motor
+  motor1.setOutput(motor1_speed);
+
+  // debug
+  Serial.print("#M1 Speed: ");
+  Serial.println(motor1_speed);
+
+  Serial.print("#M1 degrees: ");
+  Serial.println(enc1.getDegrees(), 2);
+
   Serial.println();
+
   delay(20);
 }
