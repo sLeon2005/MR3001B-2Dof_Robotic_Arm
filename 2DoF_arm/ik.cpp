@@ -11,11 +11,18 @@ float theta1Rad(float x, float y, float l1, float l2) {
 }
 
 float theta2Rad(float x, float y, float l1, float l2) {
-  float D = (x*x + y*y - l1*l1 - l2*l2) / (2.0 * l1 * l2);
-  D = constrain(D, -1.0, 1.0);
+  float D = (x * x + y * y - l1 * l1 - l2 * l2) / (2.0 * l1 * l2);
+
+  // constrain -1.0 to 1.0
+  if (D > 1.0) {
+    D = 1.0;
+  }
+  if (D < -1.0) {
+    D = -1.0;
+  }
 
   // elbow-down → signo negativo
-  return atan2(-sqrt(1.0 - D*D), D);
+  return atan2(-sqrt(1.0 - D * D), D);
 }
 
 float theta1Deg(float x, float y, float link1, float link2) {

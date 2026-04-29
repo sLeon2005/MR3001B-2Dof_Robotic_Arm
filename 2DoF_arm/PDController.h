@@ -18,7 +18,7 @@ private:
   float _kp;
   float _kd;
 
-  float _tolerance = 2.5;
+  float _tolerance = 1.8;
 
   float _prevMeasurement = 0.0;
   float _velFiltered = 0.0;

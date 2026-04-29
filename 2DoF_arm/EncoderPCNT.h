@@ -14,6 +14,7 @@ public:
   float   getDegrees();
   float   getRevolutions();
 
+  void setInverted(bool invert);
   void reset();
 
   volatile int64_t _accumulator = 0;  // público para acceso del ISR global
@@ -22,6 +23,7 @@ private:
   uint8_t     _pinA;
   uint8_t     _pinB;
   int         _ppr;
+  int         _inverted = 1;
   pcnt_unit_t _unit;
 
   static void _overflowHandler(void* arg);

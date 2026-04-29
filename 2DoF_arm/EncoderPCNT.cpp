@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include "EncoderPCNT.h"
 
-#define PCNT_H_LIM  10000
+#define PCNT_H_LIM 10000
 #define PCNT_L_LIM -10000
 
 static EncoderPCNT* _instances[PCNT_UNIT_MAX] = {};
@@ -19,39 +19,44 @@ static void IRAM_ATTR _sharedOverflowHandler(void* arg) {
 }
 
 EncoderPCNT::EncoderPCNT(uint8_t pinA, uint8_t pinB, int ppr, pcnt_unit_t unit) {
-  _pinA        = pinA;
-  _pinB        = pinB;
-  _ppr         = ppr;
-  _unit        = unit;
+  _pinA = pinA;
+  _pinB = pinB;
+  _ppr = ppr;
+  _unit = unit;
   _accumulator = 0;
 }
 
 void EncoderPCNT::begin() {
+
+  pinMode(_pinA, INPUT_PULLUP);
+  pinMode(_pinB, INPUT_PULLUP);
+  delay(10);  // stabilize those input pins
+
   pcnt_config_t cfg = {
     .pulse_gpio_num = _pinA,
-    .ctrl_gpio_num  = _pinB,
-    .lctrl_mode     = PCNT_MODE_REVERSE,
-    .hctrl_mode     = PCNT_MODE_KEEP,
-    .pos_mode       = PCNT_COUNT_INC,
-    .neg_mode       = PCNT_COUNT_DEC,
-    .counter_h_lim  = PCNT_H_LIM,
-    .counter_l_lim  = PCNT_L_LIM,
-    .unit           = _unit,
-    .channel        = PCNT_CHANNEL_0,
+    .ctrl_gpio_num = _pinB,
+    .lctrl_mode = PCNT_MODE_REVERSE,
+    .hctrl_mode = PCNT_MODE_KEEP,
+    .pos_mode = PCNT_COUNT_INC,
+    .neg_mode = PCNT_COUNT_DEC,
+    .counter_h_lim = PCNT_H_LIM,
+    .counter_l_lim = PCNT_L_LIM,
+    .unit = _unit,
+    .channel = PCNT_CHANNEL_0,
   };
   pcnt_unit_config(&cfg);
 
   pcnt_config_t cfg2 = {
     .pulse_gpio_num = _pinB,
-    .ctrl_gpio_num  = _pinA,
-    .lctrl_mode     = PCNT_MODE_KEEP,
-    .hctrl_mode     = PCNT_MODE_REVERSE,
-    .pos_mode       = PCNT_COUNT_INC,
-    .neg_mode       = PCNT_COUNT_DEC,
-    .counter_h_lim  = PCNT_H_LIM,
-    .counter_l_lim  = PCNT_L_LIM,
-    .unit           = _unit,
-    .channel        = PCNT_CHANNEL_1,
+    .ctrl_gpio_num = _pinA,
+    .lctrl_mode = PCNT_MODE_KEEP,
+    .hctrl_mode = PCNT_MODE_REVERSE,
+    .pos_mode = PCNT_COUNT_INC,
+    .neg_mode = PCNT_COUNT_DEC,
+    .counter_h_lim = PCNT_H_LIM,
+    .counter_l_lim = PCNT_L_LIM,
+    .unit = _unit,
+    .channel = PCNT_CHANNEL_1,
   };
   pcnt_unit_config(&cfg2);
 
@@ -78,7 +83,7 @@ void EncoderPCNT::begin() {
 int64_t EncoderPCNT::getCount() {
   int16_t hw = 0;
   pcnt_get_counter_value(_unit, &hw);
-  return _accumulator + (int64_t)hw;
+  return (_accumulator + (int64_t)hw) * _inverted;
 }
 
 float EncoderPCNT::getDegrees() {
@@ -87,6 +92,14 @@ float EncoderPCNT::getDegrees() {
 
 float EncoderPCNT::getRevolutions() {
   return (float)getCount() / (_ppr);
+}
+
+void EncoderPCNT::setInverted(bool invert) {
+  if (invert) {
+    _inverted = -1;
+  } else {
+    _inverted = 1;
+  }
 }
 
 void EncoderPCNT::reset() {
