@@ -9,7 +9,7 @@ public:
 
   void setTolerance(float tolerance);
 
-  // Llamar cada ciclo
+  // call each cycle
   float compute(float setpoint, float measurement, float dt);
 
   void reset();
@@ -23,7 +23,7 @@ private:
   float _prevMeasurement = 0.0;
   float _velFiltered = 0.0;
 
-  float _alpha = 0.7; // filtro derivada (0–1)
+  float _alpha = 0.7; // derivative filter (0-1)
 };
 
 #endif

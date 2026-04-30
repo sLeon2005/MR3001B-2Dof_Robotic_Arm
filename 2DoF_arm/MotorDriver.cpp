@@ -33,7 +33,7 @@ void MotorDriver::setInverted(bool invert) {
 // ===== CONTROL =====
 void MotorDriver::setOutput(float u) {
 
-  // Dirección
+  // direction
   if (_inverted) { 
     u = u * -1.0;
   }

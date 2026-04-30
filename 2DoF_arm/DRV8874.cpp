@@ -17,11 +17,11 @@ void DRV8874::begin() {
 }
 
 // ===== CONFIG =====
-void DRV8874::setMaxInput(float maxVal) {  // listo
+void DRV8874::setMaxInput(float maxVal) {
   _uMax = maxVal;
 }
 
-void DRV8874::setInverted(bool invert) {  // listo
+void DRV8874::setInverted(bool invert) {
   _inverted = invert;
 }
 
@@ -65,11 +65,11 @@ void DRV8874::setOutput(float u) {
   digitalWrite(_pinPH, dir);
 }
 
-int DRV8874::getCurrentADC() {  // listo
+int DRV8874::getCurrentADC() {
   return analogRead(_pinIPROPI);
 }
 
 // ===== STOP =====
-void DRV8874::stop() {  // listo
+void DRV8874::stop() {
   ledcWrite(_pinEN, 0);
 }

@@ -25,7 +25,7 @@ float PDController::compute(float setpoint, float measurement, float dt) {
     // Derivada de la medición (más estable)
     float diffError = (measurement - _prevMeasurement) / dt;
 
-    // Filtro exponencial
+    // exponential filter
     _velFiltered = _alpha * _velFiltered + (1 - _alpha) * diffError;
 
     _prevMeasurement = measurement;

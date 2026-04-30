@@ -18,7 +18,7 @@ public:
   void reset();
   void setAngle(float degrees);
 
-  volatile int64_t _accumulator = 0;  // público para acceso del ISR global
+  volatile int64_t _accumulator = 0;
 
 private:
   uint8_t     _pinA;
