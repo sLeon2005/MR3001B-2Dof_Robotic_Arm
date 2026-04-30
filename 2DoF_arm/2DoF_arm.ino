@@ -261,26 +261,32 @@ void loop() {
 float motor1_speed = 0;
 float motor1_setpoint = 0;
 
+float motor2_speed = 0;
+float motor2_setpoint = 0;
+
 MotorDriver motor1(motor1_EN, motor1_IN1, motor1_IN2);
 EncoderPCNT enc1(enc1_A, enc1_B, 3200, PCNT_UNIT_0);
-PDController motor1_PD(2.0, 0.25);  // kp, kd
+PDController motor1_PD(3.8, 0.25);  // kp, kd
 
 DRV8874 motor2(motor2_EN, motor2_PH, motor2_IPROPI);
-EncoderPCNT enc2(enc2_A, enc2_B, 3200, PCNT_UNIT_1);
-PDController motor2_PD(1.5, 0.85);
+EncoderPCNT enc2(enc2_A, enc2_B, 2000, PCNT_UNIT_1);
+PDController motor2_PD(2.0, 0.2);  // kp, kd
 
 void setup() {
   Serial.begin(115200);
 
   motor1.begin();
   enc1.begin();
-  enc1.setInverted(true);
+  enc1.setInverted(false);
 
-  Serial.print("Encoder 1: ");
-  Serial.println(enc1.getDegrees());
+  motor2.begin();
+  enc2.begin();
+  enc2.setInverted(false);
 
-  Serial.print("Encoder 1: ");
-  Serial.println(enc1.getDegrees());
+  motor2.setOutput(30.0);
+  delay(120);
+  motor2.stop();
+
   delay(600);
 }
 
@@ -290,44 +296,101 @@ void loop() {
   if (Serial.available() > 0) {
     char cmd = Serial.read();
 
-    if (cmd == 'A') {
+    if (cmd == '0') {
+      Serial.println("Resetting all encoders");
+      enc1.reset();
+      enc2.reset();
+    }
+
+    else if (cmd == 'A') {
       Serial.println("Resetting encoder #1");
-      enc1.reset();      
+      enc1.reset();
     }
 
     else if (cmd == 'B') {
-      Serial.println("M1 speed = 30");
-      motor1_setpoint = 45.0;
+      Serial.println("Resetting encoder #2");
+      enc2.reset();
     }
 
-    else if (cmd == 'C') {
-      Serial.println("M1 speed = -30");
-      motor1_setpoint = 135.0;
+    else if (cmd == '1') {
+      Serial.println("Calibrating encoder #1...");
+      enc1.setAngle(-15.0);
+      motor1_setpoint = 0.0;
+      Serial.println("Encoder #1 calibrated.");
+    }
+
+    else if (cmd == '2') {
+      Serial.println("Calibrating encoder #2...");
+      motor2.setOutput(-20.0);
+
+      while (motor2.getCurrentADC() < 430) {
+        Serial.println("Waiting for crash...");
+        delay(5);
+      }
+
+      motor2.stop();
+      enc2.setAngle(-160.0);
+      motor2_setpoint = -160.0;
+
+      Serial.println("Encoder #2 calibrated.");
+    }
+
+    else if (cmd == 'D') {
+      Serial.println("M2 speed = -30");
+      motor1_setpoint = 90.0;
+    }
+
+    else if (cmd == 'X') {
+      motor1_setpoint = 60.0;
+      motor2_setpoint = -120.0;
+    }
+
+    else if (cmd == 'Y') {
+      Serial.println("Home Position");
+      //home
+      motor1_setpoint = 120.0;
+      motor2_setpoint = -110.0;
+    }
+
+    else if (cmd == 'Z') {
+      motor1_setpoint = 70.0;
+      motor2_setpoint = -60.0;
     }
   }
 
-  //Serial.println(motor1_PD.compute(0.0, enc1.getDegrees(), 0.02));
-  motor1_speed = motor1_PD.compute(motor1_setpoint, enc1.getDegrees(), 0.02);  
+  motor1_speed = motor1_PD.compute(motor1_setpoint, enc1.getDegrees(), 0.02);
+  motor2_speed = motor2_PD.compute(motor2_setpoint, enc2.getDegrees(), 0.02);
 
   // clamp speed if off physical limits
-  if (enc1.getDegrees() < 0.0){
+  if (enc1.getDegrees() < 0.0) {
     motor1_speed = max(motor1_speed, 0.0f);
   }
-  if (enc1.getDegrees() > 180.0){
+  if (enc1.getDegrees() > 180.0) {
     motor1_speed = min(motor1_speed, 0.0f);
   }
+  if (enc2.getDegrees() < -130.0) {
+    motor2_speed = max(motor2_speed, 0.0f);
+  }
+  if (enc2.getDegrees() > 160.0) {
+    motor2_speed = min(motor2_speed, 0.0f);
+  }
 
-  // set output of motor
+  // set output of motors
   motor1.setOutput(motor1_speed);
+  motor2.setOutput(motor2_speed);
 
   // debug
   Serial.print("#M1 Speed: ");
-  Serial.println(motor1_speed);
+  Serial.print(motor1_speed);
+  Serial.print("\t#M1 degrees: ");
+  Serial.print(enc1.getDegrees(), 2);
 
-  Serial.print("#M1 degrees: ");
-  Serial.println(enc1.getDegrees(), 2);
+  Serial.print("\t");
 
-  Serial.println();
+  Serial.print("#M2 Speed: ");
+  Serial.print(motor2_speed);
+  Serial.print("\t#M2 degrees: ");
+  Serial.println(enc2.getDegrees(), 2);
 
   delay(20);
 }
