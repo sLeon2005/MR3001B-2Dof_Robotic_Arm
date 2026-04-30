@@ -266,7 +266,7 @@ float motor2_setpoint = 0;
 
 MotorDriver motor1(motor1_EN, motor1_IN1, motor1_IN2);
 EncoderPCNT enc1(enc1_A, enc1_B, 3200, PCNT_UNIT_0);
-PDController motor1_PD(3.8, 0.25);  // kp, kd
+PDController motor1_PD(3.2, 0.25);  // kp, kd
 
 DRV8874 motor2(motor2_EN, motor2_PH, motor2_IPROPI);
 EncoderPCNT enc2(enc2_A, enc2_B, 2000, PCNT_UNIT_1);
@@ -340,6 +340,11 @@ void loop() {
       motor1_setpoint = 90.0;
     }
 
+    else if (cmd == 'S'){
+      motor1_setpoint = enc1.getDegrees();
+      motor2_setpoint = enc2.getDegrees();
+    }
+
     else if (cmd == 'X') {
       motor1_setpoint = 60.0;
       motor2_setpoint = -120.0;
@@ -380,6 +385,7 @@ void loop() {
   motor2.setOutput(motor2_speed);
 
   // debug
+  /*
   Serial.print("#M1 Speed: ");
   Serial.print(motor1_speed);
   Serial.print("\t#M1 degrees: ");
@@ -390,6 +396,19 @@ void loop() {
   Serial.print("#M2 Speed: ");
   Serial.print(motor2_speed);
   Serial.print("\t#M2 degrees: ");
+  Serial.println(enc2.getDegrees(), 2);
+  */
+
+  Serial.print("SetpointM1:");
+  Serial.print(motor1_setpoint);
+  Serial.print(",");
+  Serial.print("posM1:");
+  Serial.print(enc1.getDegrees(), 2);
+  Serial.print(",");
+  Serial.print("SetpointM2:");
+  Serial.print(motor2_setpoint);
+  Serial.print(",");
+  Serial.print("posM2:");
   Serial.println(enc2.getDegrees(), 2);
 
   delay(20);
