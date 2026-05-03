@@ -36,7 +36,7 @@ float motor2_setpoint = 0;
 
 MotorDriver motor1(motor1_EN, motor1_IN1, motor1_IN2);
 EncoderPCNT enc1(enc1_A, enc1_B, 3200, PCNT_UNIT_0);
-PDController motor1_PD(3.2, 0.25);  // kp, kd
+PDController motor1_PD(2.5, 0.25);  // kp, kd
 
 DRV8874 motor2(motor2_EN, motor2_PH, motor2_IPROPI);
 EncoderPCNT enc2(enc2_A, enc2_B, 2000, PCNT_UNIT_1);
@@ -63,6 +63,8 @@ void setup() {
   delay(600);
 }
 
+unsigned long lastLog = 0;
+
 void loop() {
 
   // receive commands from Serial Monitor
@@ -70,34 +72,34 @@ void loop() {
     char cmd = Serial.read();
 
     if (cmd == '0') {
-      Serial.println("Resetting all encoders");
+      //Serial.println("Resetting all encoders");
       enc1.reset();
       enc2.reset();
     }
 
     else if (cmd == 'A') {
-      Serial.println("Resetting encoder #1");
+      //Serial.println("Resetting encoder #1");
       enc1.reset();
     }
 
     else if (cmd == 'B') {
-      Serial.println("Resetting encoder #2");
+      //Serial.println("Resetting encoder #2");
       enc2.reset();
     }
 
     else if (cmd == '1') {
-      Serial.println("Calibrating encoder #1...");
+      //Serial.println("Calibrating encoder #1...");
       enc1.setAngle(-15.30);
       motor1_setpoint = 0.0;
-      Serial.println("Encoder #1 calibrated.");
+      //Serial.println("Encoder #1 calibrated.");
     }
 
     else if (cmd == '2') {
-      Serial.println("Calibrating encoder #2...");
+      //Serial.println("Calibrating encoder #2...");
       motor2.setOutput(-20.0);
 
       while (motor2.getCurrentADC() < 430) {
-        Serial.println("Waiting for crash...");
+        //Serial.println("Waiting for crash...");
         delay(5);
       }
 
@@ -105,11 +107,11 @@ void loop() {
       enc2.setAngle(-160.0);
       motor2_setpoint = -150.0;
 
-      Serial.println("Encoder #2 calibrated.");
+      //Serial.println("Encoder #2 calibrated.");
     }
 
     else if (cmd == 'D') {
-      Serial.println("M2 speed = -30");
+      //Serial.println("M2 speed = -30");
       motor1_setpoint = 90.0;
     }
 
@@ -120,7 +122,7 @@ void loop() {
 
     // pick object (139, -25)
     else if (cmd == 'X') {
-      Serial.println("Pick Position");
+      //Serial.println("Pick Position");
       // motor1_setpoint = 60.0;
       // motor2_setpoint = -120.0;
 
@@ -130,7 +132,7 @@ void loop() {
 
     // arm home position (90, 125)
     else if (cmd == 'Y') {
-      Serial.println("Home Position");
+      //Serial.println("Home Position");
       //home
       //motor1_setpoint = 120.0;
       //motor2_setpoint = -120.0;
@@ -144,18 +146,18 @@ void loop() {
       // motor1_setpoint = 70.0;
       // motor2_setpoint = -60.0;
 
-      motor1_setpoint = theta1Deg(195.0, 120.0, a1, a4);
-      motor2_setpoint = theta2Deg(195.0, 120.0, a1, a4);
+      motor1_setpoint = theta1Deg(195.0, 125.0, a1, a4);
+      motor2_setpoint = theta2Deg(195.0, 125.0, a1, a4);
     }
 
     else if (cmd == 'M') {
-      Serial.println("Opening gripper");
+      //Serial.println("Opening gripper");
       servoGripper.write(60);
     }
 
     else if (cmd == 'N') {
-      Serial.println("Closing gripper");
-      servoGripper.write(10);
+      //Serial.println("Closing gripper");
+      servoGripper.write(15);
     }
   }
 
@@ -181,6 +183,7 @@ void loop() {
   motor2.setOutput(motor2_speed);
 
   // debug
+  /*
   Serial.print("#M1\tSpeed: ");
   Serial.print(motor1_speed);
   Serial.print("   degrees: ");
@@ -196,22 +199,27 @@ void loop() {
   Serial.print(enc2.getDegrees(), 2);
   Serial.print("   setpoint: ");
   Serial.println(motor2_setpoint);
-
-
-
-  /*
-  Serial.print("SetpointM1:");
-  Serial.print(motor1_setpoint);
-  Serial.print(",");
-  Serial.print("posM1:");
-  Serial.print(enc1.getDegrees(), 2);
-  Serial.print(",");
-  Serial.print("SetpointM2:");
-  Serial.print(motor2_setpoint);
-  Serial.print(",");
-  Serial.print("posM2:");
-  Serial.println(enc2.getDegrees(), 2);
   */
+
+
+
+  unsigned long now = millis();
+
+  if (now - lastLog >= 50) {
+    lastLog = now;
+
+    float m1 = enc1.getDegrees();
+    float m2 = enc2.getDegrees();
+
+    // Formato CSV: tiempo,setpoint,medida,...
+    Serial.printf("%lu,%.2f,%.2f,%.2f,%.2f\n",
+                  now,
+                  motor1_setpoint,
+                  m1,
+                  motor2_setpoint,
+                  m2);
+  }
+
 
   delay(20);
 }
